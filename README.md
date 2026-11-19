@@ -1,6 +1,6 @@
 # streamlitchecs
 
-[![Deploy to Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=Emanrhesus-positif/streamlitchecs&branch=main&mainModule=fil_rouge/app.py)
+[![Deploy to Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=Emanrhesus-positif/streamlitchecs&branch=main&mainModule=streamlit_app.py)
 
 Tableau de bord Streamlit pour répondre à une question simple : **où ce joueur
 d'échecs perd-il des points, et que devrait-il travailler ?**
@@ -68,7 +68,8 @@ chargement des pages Streamlit via `streamlit.testing.v1.AppTest`.
 
 1. Pousser ce dépôt sur GitHub.
 2. Sur <https://share.streamlit.io> : **Create app** → dépôt `streamlitchecs`,
-   branche `main`, fichier principal `fil_rouge/app.py`.
+   branche `main`, fichier principal **`streamlit_app.py`** (à la racine du
+   dépôt ; il reprend la navigation de `fil_rouge/app.py`).
 3. Le thème sombre est déjà dans `.streamlit/config.toml` ; aucune variable
    d'environnement n'est nécessaire.
 
