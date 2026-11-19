@@ -8,43 +8,18 @@ Lancer : uv run uvicorn api:app --app-dir fil_rouge --host 127.0.0.1 --port 8000
 Documentation interactive : http://127.0.0.1:8000/docs
 """
 
-from pathlib import Path
 from typing import Literal, Optional
 
-import joblib
-import pandas as pd
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 
-from data import familles, load_data
+from serving import ouvertures_records, parties_records, predire_proba
 
 app = FastAPI(title="Mes parties d'échecs", version="1.0")
-
-# Charger les données une fois, au démarrage
-df = load_data()
-
-# Modèle fourni (bonus /predict)
-MODEL_PATH = Path(__file__).resolve().parent / "model.joblib"
-try:
-    model = joblib.load(MODEL_PATH)
-except Exception:
-    model = None
-
 
 CadenceOuvertures = Literal["bullet", "blitz", "rapid"]
 Couleur = Literal["white", "black"]
 CadencePartie = Literal["aucune", "bullet", "blitz", "rapid", "classical"]
-
-
-def _df_to_records(frame: pd.DataFrame):
-    """Convertit un DataFrame en enregistrements JSON-sérialisables."""
-    out = frame.copy()
-    for col in out.columns:
-        if pd.api.types.is_datetime64_any_dtype(out[col]):
-            out[col] = out[col].dt.strftime("%Y-%m-%dT%H:%M:%S")
-    # NaN/NaT -> None
-    out = out.where(pd.notna(out), None)
-    return out.to_dict(orient="records")
 
 
 @app.get("/ouvertures")
@@ -53,11 +28,7 @@ def get_ouvertures(
     min_n: int = Query(30, ge=1),
 ):
     """Familles d'ouvertures, la pire d'abord. cadence invalide -> 422 (validation Literal)."""
-    vue = df
-    if cadence is not None:
-        vue = vue[vue["cadence"] == cadence]
-    res = familles(vue, min_n=min_n)
-    return _df_to_records(res)
+    return ouvertures_records(cadence, min_n=min_n)
 
 
 @app.get("/parties")
@@ -67,34 +38,7 @@ def get_parties(
     limit: int = Query(50, ge=1, le=500),
 ):
     """Parties filtrées (plus récentes d'abord), avec paramètres validés."""
-    vue = df.copy()
-    if cadence is not None:
-        vue = vue[vue["cadence"] == cadence]
-    if couleur is not None:
-        vue = vue[vue["couleur"] == couleur]
-
-    vue = vue.sort_values("date_jeu", ascending=False).head(limit)
-
-    cols = [
-        c
-        for c in [
-            "partie_id",
-            "date_jeu",
-            "cadence",
-            "couleur",
-            "resultat",
-            "score",
-            "gaffes_joueur",
-            "ouverture_famille",
-            "ouverture_nom",
-            "ecart_elo",
-            "elo_joueur",
-            "elo_adverse",
-            "nb_coups",
-        ]
-        if c in vue.columns
-    ]
-    return _df_to_records(vue[cols])
+    return parties_records(cadence, couleur, limit)
 
 
 class Partie(BaseModel):
@@ -107,24 +51,7 @@ class Partie(BaseModel):
 @app.post("/predict")
 def predict(partie: Partie):
     """Probabilité de victoire estimée par le modèle fourni (bonus)."""
-    if model is None:
+    proba = predire_proba(partie.couleur, partie.cadence, partie.ecart_elo, partie.heure)
+    if proba is None:
         return {"proba_victoire": None, "detail": "Modèle indisponible"}
-
-    X = pd.DataFrame(
-        [
-            {
-                "couleur": partie.couleur,
-                "cadence": partie.cadence,
-                "ecart_elo": partie.ecart_elo,
-                "heure": partie.heure,
-            }
-        ]
-    )
-    proba = model.predict_proba(X)[0]
-    # classes typiques [False, True] -> proba de victoire = proba de True
-    classes = list(getattr(model, "classes_", [False, True]))
-    if True in classes:
-        p = float(proba[classes.index(True)])
-    else:
-        p = float(proba[-1])
-    return {"proba_victoire": p}
+    return {"proba_victoire": proba}
