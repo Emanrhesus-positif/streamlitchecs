@@ -6,6 +6,7 @@ tourner). Le LLM choisit un outil d'après son nom, sa docstring et ses argument
 Lancer : uv run python fil_rouge/mcp_server.py   (stdio : c'est le client LLM qui le lance,
 voir contexte/README.md pour le brancher). Lancé à la main, il n'affiche rien et attend un
 client : c'est normal. Pour tester : npx @modelcontextprotocol/inspector uv run python fil_rouge/mcp_server.py
+HTTP public (Render, Cloud Run) : MCP_TRANSPORT=http MCP_TUNNEL=1 python fil_rouge/mcp_server.py
 """
 
 import os
@@ -15,7 +16,10 @@ import requests
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
-API = os.environ.get("AWP_API_URL", "http://127.0.0.1:8000")
+API = os.environ.get("AWP_API_URL", "http://127.0.0.1:8000").rstrip("/")
+# Render fournit l'hôte sans schéma quand on référence un autre service : on ajoute https.
+if API and not API.startswith(("http://", "https://")):
+    API = "https://" + API
 # Deux transports. stdio (par défaut) : le client LLM lance ce script lui-même, sur la même machine.
 # MCP_TRANSPORT=http : un serveur HTTP sur /mcp, pour un client qui ne lance pas le script (un client
 # dans le cloud, via un hébergeur ou un tunnel). En local : 127.0.0.1:8001 (l'API est sur 8000), pas
@@ -23,10 +27,20 @@ API = os.environ.get("AWP_API_URL", "http://127.0.0.1:8000")
 HTTP = os.environ.get("MCP_TRANSPORT") == "http"
 HOTE = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
 # En local, FastMCP refuse un nom d'hôte autre que 127.0.0.1 ou localhost (protection contre le DNS
-# rebinding). Derrière un tunnel (MCP_TUNNEL=1), l'hôte est celui du tunnel : on lève la protection,
-# le serveur est de toute façon public tant que le tunnel tourne.
+# rebinding). Derrière un tunnel ou un hébergeur (MCP_TUNNEL=1), l'hôte est public : on lève la
+# protection (les outils sont en lecture seule). Sinon, MCP_ALLOWED_HOSTS liste les hôtes acceptés.
 TUNNEL = os.environ.get("MCP_TUNNEL") == "1"
-SECU = TransportSecuritySettings(enable_dns_rebinding_protection=False) if TUNNEL else None
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
+if TUNNEL:
+    SECU = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+elif ALLOWED_HOSTS:
+    SECU = TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=ALLOWED_HOSTS + ["127.0.0.1:*", "localhost:*"],
+        allowed_origins=["*"],
+    )
+else:
+    SECU = None
 mcp = FastMCP("echecs", host=HOTE, port=int(os.environ.get("PORT", "8001")), transport_security=SECU)
 
 

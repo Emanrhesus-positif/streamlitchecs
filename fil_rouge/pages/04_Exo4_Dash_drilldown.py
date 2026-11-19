@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import plotly.express as px
 import streamlit as st
+import streamlit.components.v1 as components
 
 from data import familles, load_coups, load_data
 from ui import PLOTLY_CONFIG, apply_theme, style_fig
@@ -18,6 +19,17 @@ if os.environ.get("AWP_UNIFIED") != "1":
     st.set_page_config(page_title="AWP — Drill-down", layout="wide", initial_sidebar_state="expanded")
 
 apply_theme()
+
+
+def _lien_dash() -> str | None:
+    """URL publique du Dash (secret Streamlit Cloud ou variable d'environnement)."""
+    url = os.environ.get("AWP_DASH_URL")
+    if not url:
+        try:
+            url = st.secrets["AWP_DASH_URL"]
+        except Exception:
+            return None
+    return (url or "").rstrip("/") or None
 
 
 @st.cache_data
@@ -29,6 +41,19 @@ df, coups = donnees()
 
 st.title("Quelles ouvertures me coûtent des points ?")
 st.caption("Cliquez une barre pour lister les parties, puis une ligne pour voir les coups jugés mauvais.")
+
+DASH_URL = _lien_dash()
+if DASH_URL:
+    c1, c2 = st.columns([1, 3])
+    c1.link_button("Ouvrir la version Dash", DASH_URL, width="stretch")
+    c2.caption("Le même drill-down, servi par `app_dash.py` (Render).")
+    with st.expander("Afficher la version Dash ici", expanded=False):
+        components.iframe(DASH_URL, height=900, scrolling=True)
+else:
+    st.caption(
+        "Version Dash en local : `python fil_rouge/app_dash.py` → http://127.0.0.1:8050 "
+        "(ou définir `AWP_DASH_URL` pour l'afficher ici)."
+    )
 
 n_min = st.slider(
     "Parties minimum par famille d'ouvertures",
@@ -167,5 +192,3 @@ else:
             "eval_cp": st.column_config.NumberColumn("évaluation", format="%d"),
         },
     )
-
-st.caption("Version Dash équivalente : `python fil_rouge/app_dash.py` → http://127.0.0.1:8050")

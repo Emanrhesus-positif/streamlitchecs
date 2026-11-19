@@ -1,3 +1,9 @@
+[server]
+# Exo 6 : endpoints /_stcore/agent/openapi.json, /interact et /mcp.
+# En local, lancer avec --server.address 127.0.0.1 pour ne pas exposer l'API au réseau.
+# Ne pas fixer address ici : Streamlit Cloud doit écouter sur toutes les interfaces.
+enableAgentApi = true
+
 [browser]
 gatherUsageStats = false
 
