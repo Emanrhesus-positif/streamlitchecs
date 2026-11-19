@@ -1,5 +1,7 @@
 # streamlitchecs
 
+[![Deploy to Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=Emanrhesus-positif/streamlitchecs&branch=main&mainModule=fil_rouge/app.py)
+
 Tableau de bord Streamlit pour répondre à une question simple : **où ce joueur
 d'échecs perd-il des points, et que devrait-il travailler ?**
 
