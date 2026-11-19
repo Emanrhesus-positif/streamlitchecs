@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.streamlit/secrets.toml
+data/cache/
+.pytest_cache/
+.ruff_cache/
+metriques.json
+courbe_modele.html
